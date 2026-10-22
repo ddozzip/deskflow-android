@@ -24,6 +24,9 @@
 
 package org.tfv.deskflow.services
 
+import android.media.AudioManager
+import android.provider.Settings
+import android.widget.Toast
 import android.Manifest
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.GestureDescription
@@ -61,12 +64,16 @@ import arrow.core.raise.catch
 import kotlin.concurrent.atomics.AtomicBoolean
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.pow
+import kotlin.math.roundToInt
+import kotlin.math.sqrt
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.tfv.deskflow.R
 import org.tfv.deskflow.client.events.KeyboardEvent
 import org.tfv.deskflow.client.events.MouseEvent
 import org.tfv.deskflow.client.events.ScreenEvent
+import org.tfv.deskflow.client.util.Keyboard
 import org.tfv.deskflow.client.models.ClipboardData
 import org.tfv.deskflow.client.util.logging.KLoggingManager
 import org.tfv.deskflow.components.GlobalKeyboardManager
@@ -421,7 +428,74 @@ class GlobalInputService : AccessibilityService() {
    */
   private fun onKeyboardEvent(event: KeyboardEvent) {
     log.debug { "onKeyboardEvent: $event" }
+    if (handleSystemKey(event)) return
     keyboardManager.process(event)
+  }
+
+  /**
+   * Volume and brightness keys from the server adjust this device. Returns
+   * true when the event was one of those keys.
+   */
+  private fun handleSystemKey(event: KeyboardEvent): Boolean {
+    val key = Keyboard.findSpecialKey(event.id.toInt()) ?: return false
+    val audioAdjust =
+      when (key) {
+        Keyboard.SpecialKey.AudioUp -> AudioManager.ADJUST_RAISE
+        Keyboard.SpecialKey.AudioDown -> AudioManager.ADJUST_LOWER
+        Keyboard.SpecialKey.AudioMute -> AudioManager.ADJUST_TOGGLE_MUTE
+        Keyboard.SpecialKey.BrightnessUp,
+        Keyboard.SpecialKey.BrightnessDown -> null
+        else -> return false
+      }
+    // Act on key down and auto-repeat; the matching up event is swallowed.
+    if (event.type == KeyboardEvent.Type.Up) return true
+
+    if (audioAdjust != null) {
+      audioManager.adjustSuggestedStreamVolume(
+        audioAdjust,
+        AudioManager.USE_DEFAULT_STREAM_TYPE,
+        AudioManager.FLAG_SHOW_UI,
+      )
+    } else {
+      adjustBrightness(up = key == Keyboard.SpecialKey.BrightnessUp)
+    }
+    return true
+  }
+
+  private fun adjustBrightness(up: Boolean) {
+    if (!Settings.System.canWrite(this)) {
+      log.warn { "WRITE_SETTINGS not granted, cannot change brightness" }
+      Toast.makeText(
+          this,
+          "Allow \"Modify system settings\" for Deskflow to change brightness",
+          Toast.LENGTH_LONG,
+        )
+        .show()
+      return
+    }
+
+    val resolver = contentResolver
+    Settings.System.putInt(
+      resolver,
+      Settings.System.SCREEN_BRIGHTNESS_MODE,
+      Settings.System.SCREEN_BRIGHTNESS_MODE_MANUAL,
+    )
+    val current =
+      Settings.System.getInt(resolver, Settings.System.SCREEN_BRIGHTNESS, 128)
+    // Step on a square-root scale so steps feel even to the eye.
+    val steps = 16
+    val level = Math.round(sqrt(current / 255.0) * steps).toInt()
+    val newLevel = (level + if (up) 1 else -1).coerceIn(1, steps)
+    val value =
+      (newLevel.toDouble() / steps).pow(2).times(255).roundToInt().coerceIn(1, 255)
+    Settings.System.putInt(resolver, Settings.System.SCREEN_BRIGHTNESS, value)
+    log.debug { "Brightness $current -> $value" }
+    Toast.makeText(this, "Brightness ${newLevel * 100 / steps}%", Toast.LENGTH_SHORT)
+      .show()
+  }
+
+  private val audioManager by lazy {
+    getSystemService(AUDIO_SERVICE) as AudioManager
   }
 
   /**
