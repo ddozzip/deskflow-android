@@ -5,6 +5,21 @@ A **near** fully functional [Deskflow (deskflow.org)](https://deskflow.org) clie
 > NOTE: Everything here in, assumes you already use Deskflow on your desktop &
 > know how to configure a client/screen
 
+> **This fork** ([ddozzip/deskflow-android](https://github.com/ddozzip/deskflow-android))
+> adds the following on top of [jglanz/deskflow-android](https://github.com/jglanz/deskflow-android).
+> Each change lives on its own branch and is offered upstream as a PR.
+>
+> | Change | Branch | Upstream PR |
+> |---|---|---|
+> | Hangul (Korean) input, toggled with the Hangul key / right Alt | `hangul-input` | [#25](https://github.com/jglanz/deskflow-android/pull/25) |
+> | Volume, brightness and media keys control the device | `system-keys` | [#26](https://github.com/jglanz/deskflow-android/pull/26) |
+> | Pointer reaches the status bar and bottom gesture area (from [#22](https://github.com/jglanz/deskflow-android/pull/22)) | `full-screen-size` | [#22](https://github.com/jglanz/deskflow-android/pull/22) |
+> | Enter runs the field's action (search, go, send) | `enter-action` | [#27](https://github.com/jglanz/deskflow-android/pull/27) |
+>
+> `master` merges all of them. Build it with `./gradlew :app:assembleDebug`
+> and install with `adb install -r app/build/outputs/apk/debug/app-debug.apk`
+> (uninstall the F-Droid/Play build first; the signatures differ).
+
 ## Table of Contents
 
 <!-- TOC -->
