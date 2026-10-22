@@ -16,6 +16,7 @@ A **near** fully functional [Deskflow (deskflow.org)](https://deskflow.org) clie
 > | Pointer reaches the status bar and bottom gesture area (from [#22](https://github.com/jglanz/deskflow-android/pull/22)) | `full-screen-size` | [#22](https://github.com/jglanz/deskflow-android/pull/22) |
 > | Enter runs the field's action (search, go, send) | `enter-action` | [#27](https://github.com/jglanz/deskflow-android/pull/27) |
 > | Mouse wheel scrolls the view under the pointer, one step per notch, away from gesture areas | `wheel-scroll` | [#28](https://github.com/jglanz/deskflow-android/pull/28) |
+> | Rotating the device reports the new screen size to the server | `screen-rotation` | — |
 >
 > `master` merges all of them. Build it with `./gradlew :app:assembleDebug`
 > and install with `adb install -r app/build/outputs/apk/debug/app-debug.apk`
