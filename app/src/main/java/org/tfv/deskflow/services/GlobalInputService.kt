@@ -48,6 +48,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
@@ -433,11 +434,30 @@ class GlobalInputService : AccessibilityService() {
   }
 
   /**
-   * Volume and brightness keys from the server adjust this device. Returns
-   * true when the event was one of those keys.
+   * Volume, media and brightness keys from the server control this device.
+   * Returns true when the event was one of those keys.
    */
   private fun handleSystemKey(event: KeyboardEvent): Boolean {
     val key = Keyboard.findSpecialKey(event.id.toInt()) ?: return false
+    val mediaKeyCode =
+      when (key) {
+        Keyboard.SpecialKey.AudioPlay -> KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
+        Keyboard.SpecialKey.AudioNext -> KeyEvent.KEYCODE_MEDIA_NEXT
+        Keyboard.SpecialKey.AudioPrev -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
+        Keyboard.SpecialKey.AudioStop -> KeyEvent.KEYCODE_MEDIA_STOP
+        else -> null
+      }
+    if (mediaKeyCode != null) {
+      // Forward both down and up so the media session sees a full press;
+      // auto-repeat would toggle play/pause over and over, so drop it.
+      if (event.type == KeyboardEvent.Type.Repeat) return true
+      val action =
+        if (event.type == KeyboardEvent.Type.Up) KeyEvent.ACTION_UP
+        else KeyEvent.ACTION_DOWN
+      audioManager.dispatchMediaKeyEvent(KeyEvent(action, mediaKeyCode))
+      return true
+    }
+
     val audioAdjust =
       when (key) {
         Keyboard.SpecialKey.AudioUp -> AudioManager.ADJUST_RAISE
